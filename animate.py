@@ -80,36 +80,40 @@ class Car:
 
         print(f"Cross-track term: {self.crosstrack_error}{' '*10}", end="\r")
 
-class Fargs:
+class CarPlotter(CarDescription):
+    car = None
+    target = None
+    car_outline = None
+    plt_front_right_wheel = None
+    plt_front_left_wheel = None
+    plt_rear_right_wheel = None
+    plt_rear_left_wheel = None
+    rear_axle = None
+    annotation = None
 
-    def __init__(self, ax, sim, path, car, car_description, car_outline, front_right_wheel, front_left_wheel, rear_right_wheel, rear_left_wheel, rear_axle, annotation, target):
 
-        self.ax                = ax
-        self.sim               = sim
-        self.path              = path
-        self.car               = car
-        self.car_description   = car_description
-        self.car_outline       = car_outline
-        self.front_right_wheel = front_right_wheel
-        self.front_left_wheel  = front_left_wheel
-        self.rear_right_wheel  = rear_right_wheel
-        self.rear_left_wheel   = rear_left_wheel
-        self.rear_axle         = rear_axle
-        self.annotation        = annotation
-        self.target            = target
+    def __init__(self,car, ax):
+        super().__init__(car.overall_length, car.overall_width, car.rear_overhang, car.tyre_diameter, car.tyre_width, car.axle_track, car.wheelbase)
+        empty              = ([], [])
+        self.target,            = ax.plot(*empty, '+r')
+        self.car_outline,       = ax.plot(*empty, color=car.colour)
+        self.plt_front_right_wheel, = ax.plot(*empty, color=car.colour)
+        self.plt_rear_right_wheel,  = ax.plot(*empty, color=car.colour)
+        self.plt_front_left_wheel,  = ax.plot(*empty, color=car.colour)
+        self.plt_rear_left_wheel,   = ax.plot(*empty, color=car.colour)
+        self.rear_axle,         = ax.plot(car.x, car.y, '+', color=car.colour, markersize=2)
+        self.annotation         = ax.annotate(f'{car.x:.1f}, {car.y:.1f}', xy=(car.x, car.y + 5), color='black', annotation_clip=False)
+        self.car                = car
+        return
 
-def animate(frame, fargs):
+def animate(frame, ax, sim, path, fargs):
 
-    ax                = fargs.ax
-    sim               = fargs.sim
-    path              = fargs.path
     car               = fargs.car
-    car_description   = fargs.car_description
     car_outline       = fargs.car_outline
-    front_right_wheel = fargs.front_right_wheel
-    front_left_wheel  = fargs.front_left_wheel
-    rear_right_wheel  = fargs.rear_right_wheel
-    rear_left_wheel   = fargs.rear_left_wheel
+    front_right_wheel = fargs.plt_front_right_wheel
+    front_left_wheel  = fargs.plt_front_left_wheel
+    rear_right_wheel  = fargs.plt_rear_right_wheel
+    rear_left_wheel   = fargs.plt_rear_left_wheel
     rear_axle         = fargs.rear_axle
     annotation        = fargs.annotation
     target            = fargs.target
@@ -120,7 +124,7 @@ def animate(frame, fargs):
 
     # Drive and draw car
     car.drive()
-    outline_plot, fr_plot, rr_plot, fl_plot, rl_plot = car_description.plot_car(car.x, car.y, car.yaw, car.delta)
+    outline_plot, fr_plot, rr_plot, fl_plot, rl_plot = fargs.plot_car(car.x, car.y, car.yaw, car.delta)
     car_outline.set_data(*outline_plot)
     front_right_wheel.set_data(*fr_plot)
     rear_right_wheel.set_data(*rr_plot)
@@ -146,7 +150,6 @@ def main():
     sim  = Simulation()
     path = Path()
     car  = Car(path.px[0], path.py[0], path.pyaw[0], path.px, path.py, path.pyaw, sim.dt)
-    car_description = CarDescription(car.overall_length, car.overall_width, car.rear_overhang, car.tyre_diameter, car.tyre_width, car.axle_track, car.wheelbase)
 
     interval = sim.dt * 10**3
 
@@ -158,32 +161,12 @@ def main():
     ax.add_patch(road)
     ax.plot(path.px, path.py, '--', color='gold')
 
-    empty              = ([], [])
-    target,            = ax.plot(*empty, '+r')
-    car_outline,       = ax.plot(*empty, color=car.colour)
-    front_right_wheel, = ax.plot(*empty, color=car.colour)
-    rear_right_wheel,  = ax.plot(*empty, color=car.colour)
-    front_left_wheel,  = ax.plot(*empty, color=car.colour)
-    rear_left_wheel,   = ax.plot(*empty, color=car.colour)
-    rear_axle,         = ax.plot(car.x, car.y, '+', color=car.colour, markersize=2)
-    annotation         = ax.annotate(f'{car.x:.1f}, {car.y:.1f}', xy=(car.x, car.y + 5), color='black', annotation_clip=False)
-
+    car_description = CarPlotter(car, ax)
     fargs = [
-        Fargs(
-            ax=ax,
-            sim=sim,
-            path=path,
-            car=car,
-            car_description=car_description,
-            car_outline=car_outline,
-            front_right_wheel=front_right_wheel,
-            front_left_wheel=front_left_wheel,
-            rear_right_wheel=rear_right_wheel,
-            rear_left_wheel=rear_left_wheel,
-            rear_axle=rear_axle,
-            annotation=annotation,
-            target=target
-        )
+        ax,
+        sim,
+        path,
+        car_description
     ]
 
     _ = FuncAnimation(fig, animate, frames=sim.frames, init_func=lambda: None, fargs=fargs, interval=interval, repeat=sim.loop)
